@@ -1,1 +1,1 @@
-
+vector的erase源码那写的不当，deal的是_M_finish，所以一旦出现vector元素只有两个的时候，直接把最后一个元素free了，后进行了copy，这里是浅拷贝，又把指针复制到了第一个，再次进行free，造成了double free
