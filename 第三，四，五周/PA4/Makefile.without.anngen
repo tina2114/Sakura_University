@@ -1,0 +1,321 @@
+#
+#
+#Copyright (c) 1995,1996 The Regents of the University of California.
+#All rights reserved.
+#
+#Permission to use, copy, modify, and distribute this software
+#for any purpose, without fee, and without written agreement is
+#hereby granted, provided that the above copyright notice and the following
+#two paragraphs appear in all copies of this software.
+#
+#IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+#DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT
+#OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF
+#CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+#INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+#AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+#ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION TO
+#PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+#
+
+#
+# Change GMAKE, AR, CC to names of the corresponding programs
+# on the local system.  LIB should name the "fl" library.
+# Full pathnames may be necessary.
+#
+# C++ compiler (preferably g++)
+CC:= g++
+
+#ifeq "$(shell uname)" "SunOS"
+#LIB= -Wl,-rpath /usr/sww/lib -L/usr/sww/lib -lfl
+#else
+LIB= -L/usr/pubsw/lib -lfl
+#endif
+
+#
+# Compiler, linker, and archiver flags
+#
+# On most systems the following settings should work as is.
+#
+# For some linkers, you may need to remove the -static flag
+# from LDFLAGS here and in aps/Makefile.
+# The -static flag guarantees a stand-alone binary is built,
+# which is useful if you plan to distribute binaries
+# to students for use on personal machines. 
+#
+# On some Linux systems leaving out -static causes some of
+# the test drivers (the *-test programs) to compile incorrectly;
+# I have no idea why this happens.
+#
+#
+CPPINCLUDES := -I.
+ifdef DEBUG
+COPT := -g -pedantic -Woverloaded-virtual 
+else
+COPT := -O2
+endif
+CFLAGS := -Wall -Wno-unused ${CPPINCLUDES} ${COPT}
+
+# link statically on Linux, because different distribs tend to have different 
+# libraries
+ifeq "${ARCH}" "i686"
+LDFLAGS= -static
+else
+LDFLAGS= -R/usr/pubsw/lib
+endif
+
+#for gdb:
+ifdef DEBUG 
+LDFLAGS= -static
+endif
+
+#
+# STOP: It shouldn't be necessary to change anything below this line
+# to install the system.
+#
+MAKEFILE := Makefile
+
+#
+#  Compiler files are classified in several different ways to
+#  allow components to be mixed and matched for various purposes,
+#  such as building the reference compiler, building assignment
+#  archives, and building the separate phases of the compiler.
+#
+
+# support headers (students get these)
+SUPP_SRC_H := \
+	copyright.h \
+	cool.h\
+        tree.h \
+        list.h \
+        stringtab.h \
+        stringtab_functions.h \
+        symtab.h \
+        utilities.h \
+        cgen_gc.h \
+	cool-io.h \
+
+# generated support headers (students get these)
+SUPP_GENSRC_H := \
+	ast-parse.h \
+        cool-tree.h \
+        cool-node-dec.h
+
+# assignment headers (students get skeletons)
+ASN_SRC_H := \
+        semant.h \
+	cgen.h \
+	cgen_supp.h \
+        emit.h \
+	cool-tree.handcode.h
+
+# generated assignment headers (students get skeletons for inputs
+# from which these are genereated)
+ASN_GENSRC_H := \
+	cool-parse.h
+
+# support library (students get these)
+SUPP_SRC := \
+	stringtab.cc \
+        utilities.cc \
+	dumptype.cc \
+        cgen_supp.cc\
+        tree.cc \
+
+# generated support library (students get these)
+SUPP_GENSRC := \
+	cool-tree.cc
+
+# students get these as well, but they're only used depending on the 
+# the part of the compiler being built
+EXTRA_SUPP_SRC := \
+	handle_flags.cc \
+	handle_files.cc \
+
+EXTRA_SUPP_GENSRC := \
+	ast-parse.cc \
+	ast-lex.cc \
+	tokens-lex.cc
+
+# assignment sources (students get skeletons)
+ASN_SRC := \
+	semant.cc \
+	cgen.cc 
+
+# generated assignment sources (students get a skeletons for inputs
+# from which these are generated)
+ASN_GENSRC := \
+	cool-parse.cc \
+        cool-lex.cc
+
+GENERATED := ${SUPP_GENSRC_H} ${SUPP_GENSRC} \
+	     ${ASN_GENSRC_H} ${ASN_GENSRC} ${EXTRA_SUPP_GENSRC}
+
+IFILES := ${SUPP_GENSRC_H} ${ASN_GENSRC_H} ${SUPP_SRC_H} ${ASN_SRC_H} 
+
+# main executables
+MAINSRC := \
+	lextest.cc \
+        parsetest.cc \
+        semanttest.cc \
+        cgtest.cc \
+	astparse.cc
+
+
+SUPP_OBJS := ${patsubst %.cc,%.o,${SUPP_SRC}} \
+	     ${patsubst %.cc,%.o,${SUPP_GENSRC}}
+LEXER_OBJS := cool-lex.o semant.o cgen.o ${SUPP_OBJS}
+COOL_OBJS := cool-parse.o handle_files.o ${LEXER_OBJS} 
+PHASE_OBJS := ast-lex.o ast-parse.o semant.o cgen.o ${SUPP_OBJS}
+PPHASE_OBJS := tokens-lex.o cool-parse.o semant.o cgen.o ${SUPP_OBJS}
+
+# bison and flex settings
+# 
+# bison -y -b cool -o cool-parse.c 
+#    produces output files cool.tab.c and cool.tab.h
+#
+BFLAGS := -d -v -y -b cool --debug -p cool_yy
+ASTBFLAGS := -d -v -y -b ast --debug -p ast_yy
+FFLAGS := -d -ocool-lex.cc
+ASTFFLAGS := -d -oast-lex.cc
+TOKFFLAGS := -d -otokens-lex.cc
+
+#
+# The rules.
+#
+all:	executables test-executables
+
+
+#
+# The executables.
+#
+
+EXECUTABLES := lexer-test parser-test semant-test coolc-test \
+	       lexer parser semant cgen \
+	       coolc astparse tokensparse
+
+## tests, used for regression
+
+lexer-test:  lextest.o ${LEXER_OBJS} handle_flags_debug.o
+	${CC} ${LDFLAGS} lextest.o ${LEXER_OBJS} handle_flags_debug.o ${LIB} -o lexer-test
+
+parser-test: parsetest.o ${COOL_OBJS} handle_flags_debug.o
+	${CC} ${LDFLAGS} parsetest.o ${COOL_OBJS} handle_flags_debug.o ${LIB} -o parser-test
+
+semant-test: semanttest.o ${COOL_OBJS} handle_flags_debug.o
+	${CC} ${LDFLAGS} semanttest.o ${COOL_OBJS} handle_flags_debug.o ${LIB} -o semant-test
+
+coolc-test:	cgtest.o ${COOL_OBJS} handle_flags_debug.o
+	${CC} ${LDFLAGS} cgtest.o ${COOL_OBJS} handle_flags_debug.o ${LIB} -o coolc-test
+
+## compiler phases, split into separate executables
+
+lexer: 	lextest.o ${LEXER_OBJS} handle_flags_no_debug.o 
+	${CC} ${LDFLAGS} lextest.o ${LEXER_OBJS} handle_flags_no_debug.o ${LIB} -o lexer
+
+parser: parser-phase.o ${PPHASE_OBJS} handle_flags_no_debug.o 
+	${CC} ${LDFLAGS} parser-phase.o ${PPHASE_OBJS} handle_flags_no_debug.o ${LIB} -o parser
+
+semant: semant-phase.o ${PHASE_OBJS} handle_flags_no_debug.o
+	${CC} ${LDFLAGS} semant-phase.o ${PHASE_OBJS} handle_flags_no_debug.o ${LIB} -o semant
+
+cgen:   cgen-phase.o ${PHASE_OBJS} handle_flags_no_debug.o
+	${CC} ${LDFLAGS} cgen-phase.o ${PHASE_OBJS} handle_flags_no_debug.o ${LIB} -o cgen
+
+## the reference compiler
+
+coolc:	cgtest.o ${COOL_OBJS} handle_flags_no_debug.o
+	${CC} ${LDFLAGS} cgtest.o ${COOL_OBJS} handle_flags_no_debug.o ${LIB} -o coolc
+
+astparse: astparse.o ${PHASE_OBJS} handle_flags_no_debug.o 
+	${CC} ${LDFLAGS} astparse.o ${PHASE_OBJS} handle_flags_no_debug.o ${LIB} -o astparse
+
+tokensparse: tokensparse.o ${PPHASE_OBJS} handle_flags_no_debug.o 
+	${CC} ${LDFLAGS} tokensparse.o ${PPHASE_OBJS} handle_flags_no_debug.o ${LIB} -o tokensparse
+
+install: executables
+
+executables: ../bin/coolc ../bin/lexer ../bin/parser ../bin/semant ../bin/cgen
+
+../bin/%: %
+	cp $< $@
+	chmod a+rx $@
+
+test-executables: lexer-test parser-test semant-test coolc-test
+
+#
+# general .cc rule
+#
+%.o : %.cc ${IFILES}
+	$(CC) $(CFLAGS) -c $<
+
+#
+# How to make specific targets.
+#
+
+handle_flags_no_debug.o: handle_flags.cc ${IFILES}
+	${CC} -UDEBUG ${CFLAGS} -c handle_flags.cc -o handle_flags_no_debug.o
+
+handle_flags_debug.o: handle_flags.cc ${IFILES}
+	${CC} -DDEBUG ${CFLAGS} -c handle_flags.cc -o handle_flags_debug.o
+
+../aps/aps2c++:
+	${MAKE} -C ../aps
+
+cool-tree.cc cool-tree.h: cool-tree.aps ../bin/aps2c++
+	./../aps/aps2c++ cool-tree.aps
+
+cool-node-dec.h:   cool-tree.cc cool-tree.h 
+	rm -f cool-node-dec.h; \
+        echo "#include \"tree.h\"" > cool-node-dec.h; \
+        grep "typedef" cool-tree.h >> cool-node-dec.h
+
+ast-parse.h ast-parse.cc: cool-tree.handcode.h ast.y cool.h cool-node-dec.h
+	bison ${ASTBFLAGS} ast.y
+	mv ast.tab.c ast-parse.cc
+	rm -f ast-parse.h
+	echo "#ifndef _AST_PARSE_H" >> ast-parse.h
+	echo "#define _AST_PARSE_H" >> ast-parse.h
+	cat cool.h cool-node-dec.h ast.tab.h >> ast-parse.h
+	echo "#endif" >> ast-parse.h
+
+cool-parse.h cool-parse.cc:  cool-tree.handcode.h cool.y cool.h cool-node-dec.h
+	bison ${BFLAGS} cool.y
+	mv cool.tab.c cool-parse.cc
+	rm -f cool-parse.h
+	echo "#ifndef _COOL_PARSE_H" >> cool-parse.h
+	echo "#define _COOL_PARSE_H" >> cool-parse.h
+	cat cool.h cool-node-dec.h cool.tab.h >> cool-parse.h
+	echo "#endif" >> cool-parse.h
+
+cool-lex.cc: cool.flex
+	flex ${FFLAGS} cool.flex
+
+ast-lex.cc: ast.flex
+	flex ${ASTFFLAGS} ast.flex
+
+tokens-lex.cc: tokens.flex
+	flex ${TOKFFLAGS} tokens.flex
+
+
+#
+# Cleaning up.
+#
+clean: 
+	-rm -f *~ *.o ${GENERATED} cool.out ${EXECUTABLES} *.a \
+	 cool.tab.h ast.tab.h
+
+execclean: 
+	-rm -f ${EXECUTABLES}
+
+maintainer-clean: clean
+	-rm -f *.d
+
+
+
+
+
+
+
