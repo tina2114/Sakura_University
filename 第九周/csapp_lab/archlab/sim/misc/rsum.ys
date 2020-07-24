@@ -1,0 +1,13 @@
+rsumlist:
+        pushq   %rcx            # 调用者保存的寄存器
+        andq    %rdi,%rdi       # 判断条件
+        je      end
+        mrmoveq (%rdi),%rcx     # ls->val
+        irmoveq $8,%rbx         
+        addq    %rbx,%rdi       # ls->next
+        mrmoveq (%rdi),%rdi     # ls = ls->next
+        call    rsumlist
+        addq    %rcx,%rax       # return val+rest
+end:
+        popq    %rcx
+        ret

@@ -1,0 +1,40 @@
+#   Execution begins at address 0
+        .pos 0                      #告诉汇编器应该从地址0开始生产代码
+        irmovq stack, %rsp          #初始化栈指针
+        call main                   #调用main
+        halt                        #终止程序
+#   Sample linked list
+        .align 8
+    ele1:
+        .quad 0x00a                 #quad = quard word
+        .quad ele2
+    ele2:
+        .quad 0x0b0
+        .quad ele3
+    ele3:
+        .quad 0xc00
+        .quad 0
+main:
+    irmoveq ele1,%rdi               #传参数值
+    call sumlist
+    ret
+
+sumlist:
+        xorq    %rax,%rax           # 设置 sum 初值为 0，long val = 0
+        andq    %rdi,%rdi           # 判断ls(链表指针是否为0)
+        je      end                 # ls=0直接返回
+loop:
+        mrmoveq (%rdi),%rcx         # 循环:保存 ls->val值
+        addq    %rcx,%rax           # 给sum累加值(val += ls->val)
+        irmoveq $8,%rbx             # 保存8
+        addq    %rbx,%rdi           # 链表指针+8，也就是ls->next
+        mrmoveq (%rdi),%rdi         # ls=ls->next
+        andq    %rdi,%rdi           # 判断ls(链表指针是否为0)
+        jne     loop                # ls != 0时循环
+end:
+        ret                         # 返回
+
+
+#   stack starts here and grows to lower address
+.pos 0x200 #此处说明了栈会从这个地址开始，向低地址增长
+stack:
