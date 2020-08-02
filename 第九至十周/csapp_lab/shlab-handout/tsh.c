@@ -181,7 +181,7 @@ void eval(char *cmdline)
     if (argv[0] == NULL) return;
     if (!builtin_cmd(argv))
     {
-        sigprocmask(SIG_BLOCK,&mask_one,&prev_one); //信号阻塞
+        sigprocmask(SIG_BLOCK,&mask_one,&prev_one); //信号阻塞，防止发生条件竞争
         // 在子进程中执行
         if ((pid = fork() == 0)){
             sigpromask(SIG_BLOCK,&prev_one,NULL); //解除信号阻塞
@@ -371,6 +371,9 @@ void sigchld_handler(int sig)
 {
     pid_t pid;
     int status;
+    // 等待父进程下的所有子进程回收,对waitpid的调用会阻塞，直到任意一个子进程终止
+    // 在每个子进程终止时，waitpid都会返回该子进程的非零的PID
+    // 采用while而不是if的方式防止出现信号不会排队等待从而被丢弃的现象
     while ((pid = waitpid(-1,&status,WNOHANG | WUNTRACED)) >0 ){
         if (WIFEXITED(status)){
             deletejob(jobs,pid);
