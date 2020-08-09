@@ -10,7 +10,7 @@ struct list_entry{
 };
 ```
 
-形成一个闭环的循环双向链表，如下图
+形成一个闭环的循环双向链表，如下图，同时
 
 ![image-20200803174618226](https://gitee.com/zhzzhz/blog_warehouse/raw/master/img/image-20200803174618226.png)
 
