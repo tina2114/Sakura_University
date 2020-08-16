@@ -31,7 +31,7 @@ static inline void
 list_init(list_entry_t *elm) {
     elm->prev = elm->next = elm;
 }
-// 尾插法的封装？
+// 头插法的封装？
 static inline void    
 list_add(list_entry_t *listelm, list_entry_t *elm) {
     list_add_after(listelm, elm);
@@ -78,7 +78,7 @@ struct pmm_manager {
 
 
 
-最终的数据结构是形成这样一个循环双向链表来对空闲块进行控制
+最终的数据结构是形成这样一个循环双向链表来对空闲块进行控制，free_list->next代表空闲链表中储存的最低地址的空闲块
 
 ![image-20200803174618226](https://gitee.com/zhzzhz/blog_warehouse/raw/master/img/image-20200803174618226.png)
 
@@ -89,6 +89,10 @@ struct pmm_manager {
 page结构中property和page_link的设计，在内存块中只有head page会用到，块中剩下的page结构似乎这俩属性全用不到。（那么问题来了，能不能重新设计page结构，给内存块重新设计一个head + 修改后的page结构，以减小内存浪费呢）
 
 ### default_init_memmap函数
+
+但是呢，这么设计有点问题，这种init设计的前提是ucore得多次调用init函数来形成一个完整的free_list链表。
+
+而真实的ucore标准答案中，只调用了一次init，形成完整链表，此链表只链接了head_page。在后续的lab中会出现问题。
 
 ```c
 default_init_memmap(struct Page *base, size_t n) {
@@ -104,7 +108,7 @@ default_init_memmap(struct Page *base, size_t n) {
     base->property = n;
     SetPageProperty(base); // 将其标记为已占有的物理内存空间
     nr_free += n;
-    list_add(&free_list, &(base->page_link)); // 运用尾插法将空闲块插入链表
+    list_add(&free_list, &(base->page_link)); // 运用头插法将空闲块插入链表
 }
 ```
 
@@ -135,7 +139,7 @@ default_alloc_pages(size_t n) {
             struct Page *p = page + n;
             p->property = page->property - n;
             SetPageProperty(p); // 标为已使用块
-            list_add(&free_list, &(p->page_link));
+            list_add(&(page->page_link), &(p->page_link));
     }
         list_del(&(page->page_link)); //从链表中删除
         nr_free -= n;
@@ -150,6 +154,7 @@ default_alloc_pages(size_t n) {
 此为原始代码，原始代码的想法是，遍历空闲链表，发现链表当前内存块对应的空闲页和要释放的页在物理地址上是连续的，就进行合并，再将合并后的页用头插放入链表。这是不符合first fit算法要求的，因为它无法确保空闲页按地址从小到大排序。
 
 ```c
+static void
 default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
     struct Page *p = base;
@@ -200,53 +205,6 @@ default_free_pages(struct Page *base, size_t n) {
 ![image-20200809011013976](https://gitee.com/zhzzhz/blog_warehouse/raw/master/img/image-20200809011013976.png)
 
 ![image-20200809014959732](https://gitee.com/zhzzhz/blog_warehouse/raw/master/img/image-20200809014959732.png)
-
-改进后的代码
-
-```c
-static void
-default_free_pages(struct Page *base, size_t n) {
-    assert(n > 0);
-    struct Page *p = base;
-    struct Page *pp = base;  // previous page in the free_list
-    for (; p != base + n; p ++) {
-        assert(!PageReserved(p) && !PageProperty(p));
-        p->flags = 0;
-        set_page_ref(p, 0);
-    }
-    p = base;
-    base->property = n;
-    SetPageProperty(base);
-    list_entry_t *le = list_next(&free_list);
-    // 根据地址从小到大开始找
-    while ((le != &free_list) && ((p = le2page(le, page_link)) < base)) {
-        pp = p;
-        le = list_next(le);
-    }
-	// 前后双验证
-    if ((base + base->property == p) && (pp + pp->property == base)) {
-        pp->property += (base->property + p->property);
-        ClearPageProperty(base);
-        ClearPageProperty(p);
-        list_del(le);
-    }
-    else if (base + base->property == p) {
-        base->property += p->property;
-        ClearPageProperty(p);
-        list_add_before(le, &(base->page_link));
-        list_del(le);
-    }
-    else if (pp + pp->property == base) {
-        pp->property += base->property;
-        ClearPageProperty(base);
-    }
-    else {
-        list_add_before(le, &(base->page_link));
-    }
-
-    nr_free += n;
-}
-```
 
 ### 练习2：实现寻找虚拟地址对应的页表项
 

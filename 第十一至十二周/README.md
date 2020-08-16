@@ -14,7 +14,20 @@ https://www.shiyanlou.com/courses/221
 
 网上clone ubuntu环境
 
-https://github.com/kiukotsu/ucore
+https://github.com/kiukotsu/ucore （2015版）
+
+https://github.com/chyyuu/os_kernel_lab/tree/master （2020版）
+
+2020版本下载完后发现没有labcodes，别急，那是在另一个分支上，此时进入你下载好的文件夹内，依次输入
+
+```shell
+git checkout master
+git pull origin master
+```
+
+就ok了。
+
+
 
 整体实验框架
 
