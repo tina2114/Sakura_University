@@ -180,8 +180,8 @@ void eval(char *cmdline)
     bg = parseline(buf,argv);
     if (argv[0] == NULL) return;
     if (!builtin_cmd(argv))
-    {
-        sigprocmask(SIG_BLOCK,&mask_one,&prev_one); //信号阻塞，防止发生条件竞争
+    {   // 防止子进程在父进程之间结束，也就是addjob和deletejob之间，必须保证这个拓扑顺序
+        sigprocmask(SIG_BLOCK,&mask_one,&prev_one); //信号阻塞，防止发生条件竞争，
         // 在子进程中执行
         if ((pid = fork() == 0)){
             sigpromask(SIG_BLOCK,&prev_one,NULL); //解除信号阻塞
@@ -191,14 +191,14 @@ void eval(char *cmdline)
                 exit(0);
             }
             if (execve(argv[0],argv,environ) < 0){
-                printf("%s: Command not found.\n",argv[0]);
-                exit(0);
+                printf("%s: Command not found.\n",argv[0]); //没找到相关可执行文件的情况下，打印消息，直接退出
+                exit(0); //这里务必加上exit(0)，否则当execve函数无法执行的时候，子进程开始运行主进程的代码，出现不可预知的错误。
             }
         }
         else{
             if (bg) addjob(jobs,pid,BG,cmdline);
             else    addjob(jobs,pid,FG,cmdline);
-
+            //创建完成子进程后，父进程addjob,整个函数执行期间，必须保证不能被中断。尤其是玩意在for循环过程中中断了不堪设想
             sigprocmask(SIG_SETMASK,&prev_one,NULL); //在添加了jobs后解除信号阻塞
 
             if(bg){
