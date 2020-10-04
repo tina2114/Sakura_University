@@ -1,0 +1,1 @@
+/usr/bin/c++      CMakeFiles/debugger.dir/main.cpp.o CMakeFiles/debugger.dir/ext/linenoise/linenoise.c.o  -o debugger ../ext/libelfin/dwarf/libdwarf++.so ../ext/libelfin/elf/libelf++.so -Wl,-rpath,/home/zhz/CLionProjects/debugger/ext/libelfin/dwarf:/home/zhz/CLionProjects/debugger/ext/libelfin/elf 

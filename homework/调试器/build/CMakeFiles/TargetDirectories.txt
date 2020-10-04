@@ -1,0 +1,7 @@
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/edit_cache.dir
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/rebuild_cache.dir
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/libelfin.dir
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/debugger.dir
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/hello.dir
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/unwinding.dir
+/home/zhz/CLionProjects/debugger/build/CMakeFiles/variable.dir
