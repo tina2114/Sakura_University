@@ -576,10 +576,11 @@ void enc(){
 }
 
 int main(){
-
-	int mmio_fd = open("/sys/devices/pci0000:00/0000:00:04.0/resource0", O_RDWR | O_SYNC);
+	// O_RDWR 读、写打开,O_SYNC每次write都等到物理I/O完成
+    int mmio_fd = open("/sys/devices/pci0000:00/0000:00:04.0/resource0",O_RDWR | O_SYNC);
+    // open failed
     if (mmio_fd == -1){
-        perror("open mmio");
+        perror("open mmio"); // perror（）用来将上一个函数发生错误的原因输出到标准设备
         exit(-1);
     }
 
