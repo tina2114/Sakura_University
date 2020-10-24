@@ -26,8 +26,8 @@ pwner入门，简单做了做，就不放上来了。
 
 ### [shell lab](https://github.com/tina2114/Sakura_University/tree/master/%E7%AC%AC%E4%B9%9D%E8%87%B3%E5%8D%81%E5%91%A8/csapp_lab/shlab-handout)
 
-####
+实现一个简易的linux里的shell
 
 ### [malloc lab](https://github.com/tina2114/Sakura_University/tree/master/%E7%AC%AC%E4%B9%9D%E8%87%B3%E5%8D%81%E5%91%A8/csapp_lab/malloclab)
 
-####
+实现一个简易的glibc的堆块回收
