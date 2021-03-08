@@ -1,0 +1,39 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/io.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <assert.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <sys/types.h>
+
+uint32_t pmio_base=0xc050;
+
+void die(const char* msg)
+{
+    perror(msg);
+    exit(-1);
+}
+
+uint32_t pmio_write(uint32_t addr, uint32_t value)
+{
+    outl(value,addr);
+}
+
+uint32_t pmio_read(uint32_t addr)
+{
+    return (uint32_t)inl(addr);
+}
+
+int main(int argc, char *argv[])
+{
+
+    // Open and map I/O memory for the strng device
+    if (iopl(3) !=0 )
+        die("I/O permission is not enough");
+        pmio_write(pmio_base+0,0);
+    pmio_write(pmio_base+4,1);
+ 
+}

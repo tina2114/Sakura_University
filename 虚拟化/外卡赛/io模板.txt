@@ -1,0 +1,29 @@
+#include <asm/io.h>
+#include <linux/module.h>
+#include <linux/ioport.h>
+#include <linux/random.h>
+#include <linux/slab.h>
+
+long pmem;
+void m_init(void){
+	int *m;
+    printk("m_init\n");
+    pmem = ioremap(xxxxxxxx,0x2000);
+	m = kmalloc(0x2000,GFP_KERNEL);
+	for (int i = 0; i < 0x100; i++)
+		m[i] = 0x48484848;
+        if (pmem){
+		writel(8,pmem);
+		for (int i = 0; i < 0x100; i++)	
+                	writel(m[i],pmem+0x4);
+        iounmap(pmem);
+	}
+        return;
+}
+
+void m_exit(void){
+        printk("m_exit\n");
+        return;
+}
+module_init(m_init);
+module_exit(m_exit);

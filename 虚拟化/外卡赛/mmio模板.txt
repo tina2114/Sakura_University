@@ -11,25 +11,29 @@
 
 unsigned char *mmio_mem;
 
-void mmio_read(uint32_t addr){
+int mmio_read(uint32_t addr){
 	return *((uint32_t *) (mmio_mem + addr));
 }
 
-void mmio_write(uint32_t addr, uint32_t value){
+void mmio_write(uint32_t addr, uint64_t value){
 	*((uint32_t *) (mmio_mem + addr)) = value;
 }
 
 int main(){
 	int mmio_fd = open("/sys/devices/pci0000:00/0000:00:04.0/resource0",O_RDWR | O_SYNC);
-	if (mmio_fd = -1){
+	if (mmio_fd == -1){
 		perror("open mmio");
 		exit(-1);
 	}
 
-	mmio_mem = mmap(0,0x1000,PROT_READ | PROT_WRITE, MAP_SHARED, mmio_fd,0);
+	mmio_mem = mmap(0,0x100000,PROT_READ | PROT_WRITE, MAP_SHARED, mmio_fd,0);
 	if (mmio_mem == MAP_FAILED){
 		perror("mem mmap");
 		exit(-1);
 	}
 
 	printf("mmio_mem\t%p\n",mmio_mem);
+	mmio_write(8,11111111);
+	mmio_read(8);
+	return 0;
+}
