@@ -7,3 +7,6 @@
 
 构建环境ing，嵌套虚拟化。win10->vmware workstation->win10->vmware workstation->ubuntu，性能就不提了。
 
+3.9
+
+win10嵌套虚拟化大失败，选择在ubuntu中构建，排错...成功build
